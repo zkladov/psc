@@ -203,7 +203,7 @@ export default function App() {
     <div className="min-h-screen w-full bg-background text-foreground p-4 md:p-8">
       <div className="mx-auto max-w-4xl grid gap-4">
         <header className="flex items-center justify-between">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Position Size Calculator</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Gordon's Calculator</h1>
           <Button variant="secondary" onClick={() => setState(s => ({ ...s, showSettings: !s.showSettings }))}>
             {showSettings ? "Close Settings" : "Settings"}
           </Button>
