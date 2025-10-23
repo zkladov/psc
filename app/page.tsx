@@ -8,26 +8,51 @@ import { Label } from "@/components/ui/label";
 
 const LS_KEY = "PSC_STATE_V1";
 
-const defaultSettings = {
+// ---------- Types ----------
+type Inputs = {
+  instrument: string;
+  entry: unknown;
+  stopLoss: unknown;
+  riskUSD: unknown;
+  direction: "auto" | "long" | "short" | string;
+};
+
+type Settings = {
+  fxLeverage: unknown;
+  goldLeverage: unknown;
+  eurusdRate: unknown;
+  ger40PointValueEUR: unknown;
+  ger40Leverage: unknown;
+};
+
+type AppState = {
+  showSettings: boolean;
+  settings: Settings;
+  inputs: Inputs;
+};
+
+// ---------- Defaults ----------
+const defaultSettings: Settings = {
   fxLeverage: 30,
   goldLeverage: 9,
   eurusdRate: 1.1,
   ger40PointValueEUR: 1,
   ger40Leverage: 15,
-};
+} as const;
 
 const instruments = [
   { id: "EURUSD", label: "EURUSD (FX)", kind: "fx", pipSize: 0.0001 },
   { id: "GBPUSD", label: "GBPUSD (FX)", kind: "fx", pipSize: 0.0001 },
   { id: "XAUUSD", label: "XAUUSD (Gold)", kind: "gold" },
   { id: "GER40", label: "GER40 (DAX)", kind: "ger40" },
-];
+] as const;
 
+// ---------- State with persistence ----------
 function usePersistentState() {
-  const [state, setState] = useState(() => {
+  const [state, setState] = useState<AppState>(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) return JSON.parse(raw) as AppState;
     } catch {}
     return {
       showSettings: false,
@@ -48,15 +73,20 @@ function usePersistentState() {
     } catch {}
   }, [state]);
 
-  return [state, setState];
+  return [state, setState] as const;
 }
 
+// ---------- Helpers ----------
 function numberOrZero(v: unknown): number {
   const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", "."));
   return Number.isFinite(n) ? n : 0;
 }
 
-function compute({ instrument, entry, stopLoss, riskUSD, direction }, settings) {
+// ---------- Core compute ----------
+function compute(
+  { instrument, entry, stopLoss, riskUSD, direction }: Inputs,
+  settings: Settings
+) {
   const A = numberOrZero(entry);
   const B = numberOrZero(stopLoss);
   const C = numberOrZero(riskUSD);
@@ -75,7 +105,8 @@ function compute({ instrument, entry, stopLoss, riskUSD, direction }, settings) 
   const kind = instruments.find(x => x.id === instrument)?.kind;
 
   if (kind === "fx") {
-    const pipSize = instruments.find(x => x.id === instrument)?.pipSize || 0.0001;
+    const pipSize =
+      instruments.find(x => x.id === instrument)?.pipSize || 0.0001;
     F = delta / pipSize;
     lots = F > 0 ? C / (F * 10) : 0;
     marginPerLot = A > 0 ? (A * 100000) / numberOrZero(settings.fxLeverage) : 0;
@@ -87,7 +118,7 @@ function compute({ instrument, entry, stopLoss, riskUSD, direction }, settings) 
     F = delta;
     const eurusd = numberOrZero(settings.eurusdRate);
     const leverage = numberOrZero(settings.ger40Leverage);
-    const marginEUR = A > 0 ? A / leverage : 0;
+    const marginEUR = A > 0 ? A / leverage : 0; // еквівалент Entry/15 за замовчуванням 15
     marginPerLot = marginEUR * eurusd;
     const pointEUR = numberOrZero(settings.ger40PointValueEUR);
     lots = F > 0 ? C / (F * eurusd * pointEUR) : 0;
@@ -107,7 +138,8 @@ function compute({ instrument, entry, stopLoss, riskUSD, direction }, settings) 
   };
 }
 
-function Field({ label, children }) {
+// ---------- UI bits ----------
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
       <Label className="text-sm text-muted-foreground">{label}</Label>
@@ -116,24 +148,27 @@ function Field({ label, children }) {
   );
 }
 
-function StatBox({ label, value, decimals = 2 }) {
+function StatBox({ label, value, decimals = 2 }: { label: string; value: number; decimals?: number }) {
   return (
     <div className="rounded-2xl border p-4 shadow-sm">
       <div className="text-sm text-muted-foreground">{label}</div>
-      <div className="text-2xl font-semibold mt-1">{new Intl.NumberFormat(undefined, { maximumFractionDigits: decimals }).format(value || 0)}</div>
+      <div className="text-2xl font-semibold mt-1">
+        {new Intl.NumberFormat(undefined, { maximumFractionDigits: decimals }).format(value || 0)}
+      </div>
     </div>
   );
 }
 
+// ---------- App ----------
 export default function App() {
   const [state, setState] = usePersistentState();
   const { settings, inputs, showSettings } = state;
   const result = useMemo(() => compute(inputs, settings), [inputs, settings]);
 
-  function setInput(k, v) {
+  function setInput<K extends keyof Inputs>(k: K, v: Inputs[K]) {
     setState(s => ({ ...s, inputs: { ...s.inputs, [k]: v } }));
   }
-  function setSetting(k, v) {
+  function setSetting<K extends keyof Settings>(k: K, v: Settings[K]) {
     setState(s => ({ ...s, settings: { ...s.settings, [k]: v } }));
   }
 
@@ -153,19 +188,19 @@ export default function App() {
               <h2 className="text-lg font-medium">Global Settings</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <Field label="FX Leverage (EURUSD/GBPUSD)">
-                  <Input inputMode="decimal" value={settings.fxLeverage} onChange={e => setSetting("fxLeverage", e.target.value)} />
+                  <Input inputMode="decimal" value={String(settings.fxLeverage ?? "")} onChange={e => setSetting("fxLeverage", e.target.value)} />
                 </Field>
                 <Field label="Gold Leverage (XAUUSD)">
-                  <Input inputMode="decimal" value={settings.goldLeverage} onChange={e => setSetting("goldLeverage", e.target.value)} />
+                  <Input inputMode="decimal" value={String(settings.goldLeverage ?? "")} onChange={e => setSetting("goldLeverage", e.target.value)} />
                 </Field>
                 <Field label="GER40 Leverage (GER40USD)">
-                  <Input inputMode="decimal" value={settings.ger40Leverage} onChange={e => setSetting("ger40Leverage", e.target.value)} />
+                  <Input inputMode="decimal" value={String(settings.ger40Leverage ?? "")} onChange={e => setSetting("ger40Leverage", e.target.value)} />
                 </Field>
                 <Field label="GER40 point value (EUR/pt/lot)">
-                  <Input inputMode="decimal" value={settings.ger40PointValueEUR} onChange={e => setSetting("ger40PointValueEUR", e.target.value)} />
+                  <Input inputMode="decimal" value={String(settings.ger40PointValueEUR ?? "")} onChange={e => setSetting("ger40PointValueEUR", e.target.value)} />
                 </Field>
                 <Field label="EURUSD rate (for GER40 conversion)">
-                  <Input inputMode="decimal" value={settings.eurusdRate} onChange={e => setSetting("eurusdRate", e.target.value)} />
+                  <Input inputMode="decimal" value={String(settings.eurusdRate ?? "")} onChange={e => setSetting("eurusdRate", e.target.value)} />
                 </Field>
               </div>
               <div className="flex gap-2">
@@ -179,7 +214,7 @@ export default function App() {
           <CardContent className="p-4 md:p-6 grid gap-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Field label="Pair / Instrument">
-                <Select value={inputs.instrument} onValueChange={v => setInput("instrument", v)}>
+                <Select value={String(inputs.instrument)} onValueChange={(v: string) => setInput("instrument", v)}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select instrument" />
                   </SelectTrigger>
@@ -192,7 +227,7 @@ export default function App() {
               </Field>
 
               <Field label="Direction">
-                <Select value={inputs.direction} onValueChange={v => setInput("direction", v)}>
+                <Select value={String(inputs.direction)} onValueChange={(v: string) => setInput("direction", v)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -207,16 +242,16 @@ export default function App() {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Field label="Entry">
-                <Input inputMode="decimal" value={inputs.entry} onChange={e => setInput("entry", e.target.value)} />
+                <Input inputMode="decimal" value={String(inputs.entry ?? "")} onChange={e => setInput("entry", e.target.value)} />
               </Field>
               <Field label="Stop Loss (SL)">
-                <Input inputMode="decimal" value={inputs.stopLoss} onChange={e => setInput("stopLoss", e.target.value)} />
+                <Input inputMode="decimal" value={String(inputs.stopLoss ?? "")} onChange={e => setInput("stopLoss", e.target.value)} />
               </Field>
               <Field label="Risk ($)">
-                <Input inputMode="decimal" value={inputs.riskUSD} onChange={e => setInput("riskUSD", e.target.value)} />
+                <Input inputMode="decimal" value={String(inputs.riskUSD ?? "")} onChange={e => setInput("riskUSD", e.target.value)} />
               </Field>
               <Field label="Computed direction">
-                <Input readOnly value={result.direction.toUpperCase()} />
+                <Input readOnly value={String(result.direction).toUpperCase()} />
               </Field>
             </div>
 
