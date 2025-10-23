@@ -86,26 +86,8 @@ function numberOrZero(v: unknown): number {
 
 /* -------------------- Core compute (формули як були) -------------------- */
 function compute(
-  {
-    instrument,
-    entry,
-    stopLoss,
-    riskUSD,
-    direction,
-  }: {
-    instrument: string;
-    entry: unknown;
-    stopLoss: unknown;
-    riskUSD: unknown;
-    direction: "auto" | "long" | "short" | string;
-  },
-  settings: {
-    fxLeverage: unknown;
-    goldLeverage: unknown;
-    eurusdRate: unknown;
-    ger40PointValueEUR: unknown;
-    ger40Leverage: unknown;
-  }
+  { instrument, entry, stopLoss, riskUSD, direction }: Inputs,
+  settings: Settings
 ) {
   const A = numberOrZero(entry);
   const B = numberOrZero(stopLoss);
