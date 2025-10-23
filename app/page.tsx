@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useMemo, useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,23 +7,24 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 
+/* -------------------- Consts -------------------- */
 const LS_KEY = "PSC_STATE_V1";
 
-/* ---------- Types ---------- */
+/* -------------------- Types -------------------- */
 type Inputs = {
   instrument: string;
-  entry: unknown;
-  stopLoss: unknown;
-  riskUSD: unknown;
+  entry: number | string;
+  stopLoss: number | string;
+  riskUSD: number | string;
   direction: "auto" | "long" | "short" | string;
 };
 
 type Settings = {
-  fxLeverage: unknown;
-  goldLeverage: unknown;
-  eurusdRate: unknown;
-  ger40PointValueEUR: unknown;
-  ger40Leverage: unknown; // 15 за замовчуванням -> формула Entry / 15
+  fxLeverage: number | string;
+  goldLeverage: number | string;
+  eurusdRate: number | string;
+  ger40PointValueEUR: number | string;
+  ger40Leverage: number | string; // 15 за замовчуванням => формула Entry / 15
 };
 
 type AppState = {
@@ -31,14 +33,14 @@ type AppState = {
   inputs: Inputs;
 };
 
-/* ---------- Defaults ---------- */
+/* -------------------- Defaults -------------------- */
 const defaultSettings: Settings = {
   fxLeverage: 30,
   goldLeverage: 9,
   eurusdRate: 1.1,
   ger40PointValueEUR: 1,
   ger40Leverage: 15,
-} as const;
+};
 
 const instruments = [
   { id: "EURUSD", label: "EURUSD (FX)", kind: "fx", pipSize: 0.0001 },
@@ -47,7 +49,7 @@ const instruments = [
   { id: "GER40", label: "GER40 (DAX)", kind: "ger40" },
 ] as const;
 
-/* ---------- State with persistence ---------- */
+/* -------------------- Persistence -------------------- */
 function usePersistentState() {
   const [state, setState] = useState<AppState>(() => {
     try {
@@ -76,13 +78,13 @@ function usePersistentState() {
   return [state, setState] as const;
 }
 
-/* ---------- Helpers ---------- */
+/* -------------------- Helpers -------------------- */
 function numberOrZero(v: unknown): number {
   const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", "."));
   return Number.isFinite(n) ? n : 0;
 }
 
-/* ---------- Core compute (формули ті самі) ---------- */
+/* -------------------- Core compute (формули як були) -------------------- */
 function compute(
   {
     instrument,
@@ -155,7 +157,7 @@ function compute(
   };
 }
 
-/* ---------- UI bits ---------- */
+/* -------------------- UI -------------------- */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
@@ -165,7 +167,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function StatBox({ label, value, decimals = 2 }: { label: string; value: number; decimals?: number }) {
+function StatBox({
+  label,
+  value,
+  decimals = 2,
+}: {
+  label: string;
+  value: number;
+  decimals?: number;
+}) {
   return (
     <div className="rounded-2xl border p-4 shadow-sm">
       <div className="text-sm text-muted-foreground">{label}</div>
@@ -176,7 +186,7 @@ function StatBox({ label, value, decimals = 2 }: { label: string; value: number;
   );
 }
 
-/* ---------- App ---------- */
+/* -------------------- App -------------------- */
 export default function App() {
   const [state, setState] = usePersistentState();
   const { settings, inputs, showSettings } = state;
@@ -193,7 +203,7 @@ export default function App() {
     <div className="min-h-screen w-full bg-background text-foreground p-4 md:p-8">
       <div className="mx-auto max-w-4xl grid gap-4">
         <header className="flex items-center justify-between">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Gordon's Calculator</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Position Size Calculator</h1>
           <Button variant="secondary" onClick={() => setState(s => ({ ...s, showSettings: !s.showSettings }))}>
             {showSettings ? "Close Settings" : "Settings"}
           </Button>
