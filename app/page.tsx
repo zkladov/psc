@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 
 const LS_KEY = "PSC_STATE_V1";
 
-// ---------- Types ----------
+/* ---------- Types ---------- */
 type Inputs = {
   instrument: string;
   entry: unknown;
@@ -22,7 +22,7 @@ type Settings = {
   goldLeverage: unknown;
   eurusdRate: unknown;
   ger40PointValueEUR: unknown;
-  ger40Leverage: unknown;
+  ger40Leverage: unknown; // 15 за замовчуванням -> формула Entry / 15
 };
 
 type AppState = {
@@ -31,7 +31,7 @@ type AppState = {
   inputs: Inputs;
 };
 
-// ---------- Defaults ----------
+/* ---------- Defaults ---------- */
 const defaultSettings: Settings = {
   fxLeverage: 30,
   goldLeverage: 9,
@@ -47,7 +47,7 @@ const instruments = [
   { id: "GER40", label: "GER40 (DAX)", kind: "ger40" },
 ] as const;
 
-// ---------- State with persistence ----------
+/* ---------- State with persistence ---------- */
 function usePersistentState() {
   const [state, setState] = useState<AppState>(() => {
     try {
@@ -76,16 +76,34 @@ function usePersistentState() {
   return [state, setState] as const;
 }
 
-// ---------- Helpers ----------
+/* ---------- Helpers ---------- */
 function numberOrZero(v: unknown): number {
   const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", "."));
   return Number.isFinite(n) ? n : 0;
 }
 
-// ---------- Core compute ----------
+/* ---------- Core compute (формули ті самі) ---------- */
 function compute(
-  { instrument, entry, stopLoss, riskUSD, direction }: Inputs,
-  settings: Settings
+  {
+    instrument,
+    entry,
+    stopLoss,
+    riskUSD,
+    direction,
+  }: {
+    instrument: string;
+    entry: unknown;
+    stopLoss: unknown;
+    riskUSD: unknown;
+    direction: "auto" | "long" | "short" | string;
+  },
+  settings: {
+    fxLeverage: unknown;
+    goldLeverage: unknown;
+    eurusdRate: unknown;
+    ger40PointValueEUR: unknown;
+    ger40Leverage: unknown;
+  }
 ) {
   const A = numberOrZero(entry);
   const B = numberOrZero(stopLoss);
@@ -105,8 +123,7 @@ function compute(
   const kind = instruments.find(x => x.id === instrument)?.kind;
 
   if (kind === "fx") {
-    const pipSize =
-      instruments.find(x => x.id === instrument)?.pipSize || 0.0001;
+    const pipSize = instruments.find(x => x.id === instrument)?.pipSize || 0.0001;
     F = delta / pipSize;
     lots = F > 0 ? C / (F * 10) : 0;
     marginPerLot = A > 0 ? (A * 100000) / numberOrZero(settings.fxLeverage) : 0;
@@ -118,7 +135,7 @@ function compute(
     F = delta;
     const eurusd = numberOrZero(settings.eurusdRate);
     const leverage = numberOrZero(settings.ger40Leverage);
-    const marginEUR = A > 0 ? A / leverage : 0; // еквівалент Entry/15 за замовчуванням 15
+    const marginEUR = A > 0 ? A / leverage : 0; // = Entry / 15 за замовчуванням
     marginPerLot = marginEUR * eurusd;
     const pointEUR = numberOrZero(settings.ger40PointValueEUR);
     lots = F > 0 ? C / (F * eurusd * pointEUR) : 0;
@@ -138,7 +155,7 @@ function compute(
   };
 }
 
-// ---------- UI bits ----------
+/* ---------- UI bits ---------- */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
@@ -159,7 +176,7 @@ function StatBox({ label, value, decimals = 2 }: { label: string; value: number;
   );
 }
 
-// ---------- App ----------
+/* ---------- App ---------- */
 export default function App() {
   const [state, setState] = usePersistentState();
   const { settings, inputs, showSettings } = state;
@@ -176,7 +193,7 @@ export default function App() {
     <div className="min-h-screen w-full bg-background text-foreground p-4 md:p-8">
       <div className="mx-auto max-w-4xl grid gap-4">
         <header className="flex items-center justify-between">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Position Size Calculator</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Gordon's Calculator</h1>
           <Button variant="secondary" onClick={() => setState(s => ({ ...s, showSettings: !s.showSettings }))}>
             {showSettings ? "Close Settings" : "Settings"}
           </Button>
