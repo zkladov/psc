@@ -86,26 +86,8 @@ function numberOrZero(v: unknown): number {
 
 /* -------------------- Core compute (формули як були) -------------------- */
 function compute(
-  {
-    instrument,
-    entry,
-    stopLoss,
-    riskUSD,
-    direction,
-  }: {
-    instrument: string;
-    entry: unknown;
-    stopLoss: unknown;
-    riskUSD: unknown;
-    direction: "auto" | "long" | "short" | string;
-  },
-  settings: {
-    fxLeverage: unknown;
-    goldLeverage: unknown;
-    eurusdRate: unknown;
-    ger40PointValueEUR: unknown;
-    ger40Leverage: unknown;
-  }
+  { instrument, entry, stopLoss, riskUSD, direction }: Inputs,
+  settings: Settings
 ) {
   const A = numberOrZero(entry);
   const B = numberOrZero(stopLoss);
@@ -122,10 +104,11 @@ function compute(
   const rewardUSD = 2 * C;
   const takeProfit = dir === "long" ? A + 2 * Math.abs(A - B) : A - 2 * Math.abs(A - B);
 
-  const kind = instruments.find(x => x.id === instrument)?.kind;
+  const instrumentDef = instruments.find(x => x.id === instrument);
+  const kind = instrumentDef?.kind;
 
-  if (kind === "fx") {
-    const pipSize = instruments.find(x => x.id === instrument)?.pipSize || 0.0001;
+  if (instrumentDef?.kind === "fx") {
+    const pipSize = instrumentDef.pipSize ?? 0.0001;
     F = delta / pipSize;
     lots = F > 0 ? C / (F * 10) : 0;
     marginPerLot = A > 0 ? (A * 100000) / numberOrZero(settings.fxLeverage) : 0;
